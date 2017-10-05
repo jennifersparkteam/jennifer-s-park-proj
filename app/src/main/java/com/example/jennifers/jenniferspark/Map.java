@@ -13,7 +13,11 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -36,9 +40,16 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 
-public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
+public class Map extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
 
@@ -49,9 +60,9 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
     private LocationRequest mLocationRequest;
     private Marker mCurrMarker;
     private ImageButton imageButton;
-    private  static final int PLACE_AUTO_COMPLETE_CODE = 11;
+    private static final int PLACE_AUTO_COMPLETE_CODE = 11;
     private static final String TAG = "MapActivity";
-
+    private User currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,13 +72,14 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+        getCurrentUser();
         imageButton = (ImageButton) findViewById(R.id.searchimgbtn);
         imageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 try {
                     Intent intent = new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_OVERLAY).build(Map.this);
-                    startActivityForResult(intent,PLACE_AUTO_COMPLETE_CODE);
+                    startActivityForResult(intent, PLACE_AUTO_COMPLETE_CODE);
                 } catch (GooglePlayServicesRepairableException e) {
                     e.printStackTrace();
                 } catch (GooglePlayServicesNotAvailableException e) {
@@ -85,6 +97,7 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
             LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         }
     }
+
     /**
      * Manipulates the map once available. This callback is triggered when the map is ready to be used.
      * This is where we can add markers or lines, add listeners or move the camera. In this case,
@@ -107,10 +120,35 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
                 //Request Location Permission
                 checkLocationPermission();
             }
-        }
-        else {
+        } else {
             buildGoogleApiClient();
             mMap.setMyLocationEnabled(true);
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.Profile:
+                startActivity(new Intent(this,Profile.class));
+            case R.id.AddParkingLot:
+                if(currentUser.getIsAdmin()==0)
+                    Toast.makeText(getApplicationContext(),"This feature requires administration permission", Toast.LENGTH_LONG).show();
+                else
+                    startActivity(new Intent(this,AddParkingLot.class));
+            case R.id.SignOut:
+                Toast.makeText(this,"You have signed out",Toast.LENGTH_SHORT).show();
+                startActivity(new Intent(this,Login.class));
+            default:
+                return super.onOptionsItemSelected(item);
         }
     }
 
@@ -124,6 +162,20 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
     }
 
     /*****************Heper methods*********************/
+    private void getCurrentUser() {
+        FirebaseAuth mAuth = FirebaseAuth.getInstance();
+        FirebaseUser mAuthUser = mAuth.getCurrentUser();
+        DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Users").child(mAuth.getCurrentUser().getUid());
+        databaseReference.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                currentUser = dataSnapshot.getValue(User.class);
+            }
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        });
+    }
 
     private void checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -145,7 +197,7 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
                                 //Prompt the user once explanation has been shown
                                 ActivityCompat.requestPermissions(Map.this,
                                         new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                                        LOCATION_PERMISSIONS_CODE );
+                                        LOCATION_PERMISSIONS_CODE);
                             }
                         })
                         .create()
@@ -214,7 +266,7 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
                 // markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
                 mCurrMarker = mMap.addMarker(markerOptions);
                 //move map camera
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,11));
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
                 Log.i(TAG, status.getStatusMessage());
@@ -223,6 +275,7 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
             }
         }
     }
+
     @Override
     public void onLocationChanged(Location location) {
         mLocation = location;
@@ -235,11 +288,11 @@ public class Map extends FragmentActivity implements OnMapReadyCallback, GoogleA
         MarkerOptions markerOptions = new MarkerOptions();
         markerOptions.position(latLng);
         markerOptions.title("You are here");
-       // markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+        // markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
         mCurrMarker = mMap.addMarker(markerOptions);
 
         //move map camera
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng,11));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
     }
 
     @Override

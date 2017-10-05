@@ -102,17 +102,12 @@ public class Login extends AppCompatActivity {
                             }
                             progress.dismiss();
                         } else {
-                            DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Users");
+                            DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Users").child(mAuth.getCurrentUser().getUid());
                             databaseReference.addValueEventListener(new ValueEventListener() {
                                @Override
                                public void onDataChange(DataSnapshot dataSnapshot) {
-                                   for(DataSnapshot datasnapshot: dataSnapshot.getChildren()){
-                                       if(datasnapshot.getKey().equals(mAuth.getCurrentUser().getUid())){
-                                           User user = datasnapshot.getValue(User.class);
-                                           Toast.makeText(Login.this, "Signed in. Welcome "+ user.getName(), Toast.LENGTH_SHORT).show();
-                                           break;
-                                       }
-                                   }
+                                   User user = dataSnapshot.getValue(User.class);
+                                   Toast.makeText(Login.this, "Signed in. Welcome "+ user.getName(), Toast.LENGTH_SHORT).show();
                                }
                                @Override
                                public void onCancelled(DatabaseError databaseError) {
