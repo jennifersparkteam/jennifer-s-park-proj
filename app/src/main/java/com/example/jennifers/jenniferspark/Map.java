@@ -5,22 +5,18 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
-
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
-import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -28,9 +24,9 @@ import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.ui.PlaceAutocomplete;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -53,40 +49,25 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
 
+    private static final int LOCATION_PERMISSIONS_CODE = 1;
+    private static final int PLACE_AUTO_COMPLETE_CODE = 11;
     private GoogleMap mMap;
     private Location mLocation;
-    private static final int LOCATION_PERMISSIONS_CODE = 1;
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
     private Marker mCurrMarker;
     private ImageButton imageButton;
-    private static final int PLACE_AUTO_COMPLETE_CODE = 11;
-    private static final String TAG = "MapActivity";
+    private ClientStorage clientStorage;
     private User currentUser;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_map);
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-        getCurrentUser();
-        imageButton = (ImageButton) findViewById(R.id.searchimgbtn);
-        imageButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    Intent intent = new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_OVERLAY).build(Map.this);
-                    startActivityForResult(intent, PLACE_AUTO_COMPLETE_CODE);
-                } catch (GooglePlayServicesRepairableException e) {
-                    e.printStackTrace();
-                } catch (GooglePlayServicesNotAvailableException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
+
+        initialize();
+
     }
 
     @Override
@@ -138,15 +119,19 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.Profile:
-                startActivity(new Intent(this,Profile.class));
+                startActivity(new Intent(this, Profile.class));
+                return true;
             case R.id.AddParkingLot:
-                if(currentUser.getIsAdmin()==0)
-                    Toast.makeText(getApplicationContext(),"This feature requires administration permission", Toast.LENGTH_LONG).show();
+                if (currentUser.getIsAdmin() == 0)
+                    Toast.makeText(getApplicationContext(), "This feature requires administration permission", Toast.LENGTH_LONG).show();
                 else
-                    startActivity(new Intent(this,AddParkingLot.class));
+                    startActivity(new Intent(this, AddParkingLot.class));
+                return true;
             case R.id.SignOut:
-                Toast.makeText(this,"You have signed out",Toast.LENGTH_SHORT).show();
-                startActivity(new Intent(this,Login.class));
+                Toast.makeText(this, "You have signed out", Toast.LENGTH_SHORT).show();
+                clientStorage.logout();
+                startActivity(new Intent(this, Login.class));
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -162,7 +147,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     }
 
     /*****************Heper methods*********************/
-    private void getCurrentUser() {
+/*    private void getCurrentUser() {
         FirebaseAuth mAuth = FirebaseAuth.getInstance();
         FirebaseUser mAuthUser = mAuth.getCurrentUser();
         DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Users").child(mAuth.getCurrentUser().getUid());
@@ -171,8 +156,36 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
             public void onDataChange(DataSnapshot dataSnapshot) {
                 currentUser = dataSnapshot.getValue(User.class);
             }
+
             @Override
             public void onCancelled(DatabaseError databaseError) {
+            }
+        });
+    }*/
+    private void initialize() {
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+        clientStorage = new ClientStorage(this);
+        if(!clientStorage.getLoginStatus()){
+            startActivity(new Intent(this,Login.class));
+        }
+        else {
+            currentUser = clientStorage.getCurrentUser();
+        }
+        imageButton = (ImageButton) findViewById(R.id.searchimgbtn);
+        imageButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    Intent intent = new PlaceAutocomplete.IntentBuilder(PlaceAutocomplete.MODE_OVERLAY).build(Map.this);
+                    startActivityForResult(intent, PLACE_AUTO_COMPLETE_CODE);
+                } catch (GooglePlayServicesRepairableException e) {
+                    e.printStackTrace();
+                } catch (GooglePlayServicesNotAvailableException e) {
+                    e.printStackTrace();
+                }
             }
         });
     }
@@ -269,7 +282,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
-                Log.i(TAG, status.getStatusMessage());
             } else if (requestCode == RESULT_CANCELED) {
 
             }

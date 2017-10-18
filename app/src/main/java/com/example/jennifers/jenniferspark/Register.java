@@ -126,9 +126,11 @@ public class Register extends AppCompatActivity {
                             progress.dismiss();
                         } else {
                             String userid = mAuth.getCurrentUser().getUid();
+                            String useremail = mAuth.getCurrentUser().getEmail();
                             DatabaseReference userinfo = mDatabase.child(userid);
                             userinfo.child("isAdmin").setValue(0);
                             userinfo.child("name").setValue(name);
+                            userinfo.child("email").setValue(useremail);
                             progress.dismiss();
                             Toast.makeText(Register.this, "Signed up successfully", Toast.LENGTH_SHORT).show();
                             startActivity(new Intent(Register.this, Login.class));

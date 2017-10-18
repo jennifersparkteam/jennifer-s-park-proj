@@ -7,41 +7,34 @@ package com.example.jennifers.jenniferspark;
 
 public class User {
     /**
-     * User name
+     * User's name
      */
     private String name;
     /**
-     * User administration permission
+     * User's email
+     */
+    private String email;
+    /**
+     * User's administration permission
      */
     private int isAdmin;
 
-    /**
-     * Default constructor
-     * New user created with empty name and no administration permission
-     */
-    public User() {
-        name = "";
-        isAdmin = 0;
-    }
+    public User(){
+        name ="";
+        email="";
+        isAdmin=0;
 
+    }
     /**
      * User constructor with preset name and administration permission
      *
      * @param name    name of user
      * @param isAdmin administration permission
      */
-    public User(String name, int isAdmin) {
+    public User(String name, String email, int isAdmin) {
         this.name = name;
+        this.email = email;
         this.isAdmin = isAdmin;
-    }
-
-    /**
-     * Set new name for current user
-     *
-     * @param name new user's name
-     */
-    public void setName(String name) {
-        this.name = name;
     }
 
     /**
@@ -63,11 +56,12 @@ public class User {
     }
 
     /**
-     * Set new administration permission for a user
+     * Get email of current user
      *
-     * @param isAdmin new user's administration permission
+     * @return email of current user
      */
-    public void setIsAdmin(int isAdmin) {
-        this.isAdmin = isAdmin;
+    public String getEmail() {
+        return email;
     }
+
 }

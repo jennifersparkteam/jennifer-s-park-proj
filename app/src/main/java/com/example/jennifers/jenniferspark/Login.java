@@ -34,6 +34,7 @@ public class Login extends AppCompatActivity {
     private TextView lregister;
     private Button lsignin;
     private ProgressDialog progress;
+    private ClientStorage clientStorage;
     private FirebaseAuth mAuth;
     private DatabaseReference mDatabase;
     //--------------------------------------------------------//
@@ -56,6 +57,7 @@ public class Login extends AppCompatActivity {
         //......................//
         lsignin = (Button) findViewById(R.id.LoginBtn);
         progress = new ProgressDialog(this);
+        clientStorage = new ClientStorage(this);
         mAuth = FirebaseAuth.getInstance();
 
         lregister.setOnClickListener(new View.OnClickListener() {
@@ -106,16 +108,17 @@ public class Login extends AppCompatActivity {
                             databaseReference.addValueEventListener(new ValueEventListener() {
                                @Override
                                public void onDataChange(DataSnapshot dataSnapshot) {
-                                   User user = dataSnapshot.getValue(User.class);
+                                   User user= dataSnapshot.getValue(User.class);
+                                   clientStorage.login(user);
                                    Toast.makeText(Login.this, "Signed in. Welcome "+ user.getName(), Toast.LENGTH_SHORT).show();
+                                   progress.dismiss();
+                                   startActivity(new Intent(Login.this,Map.class));
                                }
                                @Override
                                public void onCancelled(DatabaseError databaseError) {
 
                                }
                            });
-                            progress.dismiss();
-                            startActivity(new Intent(Login.this,Map.class));
                         }
                     }
                 });

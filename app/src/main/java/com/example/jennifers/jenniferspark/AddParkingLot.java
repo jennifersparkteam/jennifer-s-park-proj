@@ -14,8 +14,8 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 public class AddParkingLot extends AppCompatActivity {
-    private EditText title, address, cost, hour;
-    private Button addParkingbtn;
+    private EditText title, address, city,state,zipcode,description;
+    private Button addParkingbtn,bckbtn;
     private DatabaseReference mDatabase;
 
     @Override
@@ -33,10 +33,22 @@ public class AddParkingLot extends AppCompatActivity {
 
         title = (EditText) findViewById(R.id.parkinglottitletv);
         address = (EditText) findViewById(R.id.parkinglotaddresstv);
-        cost = (EditText) findViewById(R.id.parkinglotcosttv);
-        hour = (EditText) findViewById(R.id.parkinglothourtv);
+        city = (EditText) findViewById(R.id.parkinglotcitytv);
+        state = (EditText) findViewById(R.id.parkinglotstatetv);
+        zipcode = (EditText) findViewById(R.id.parkinglotziptv);
+        description = (EditText) findViewById(R.id.parkingdesctv);
         addParkingbtn = (Button) findViewById(R.id.addparkinglotbtn);
+        bckbtn=(Button)findViewById(R.id.addparkinglotbckbtn);
+
+        //Access to Parking table on database
         mDatabase = FirebaseDatabase.getInstance().getReference().child("Parkings");
+
+        bckbtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(AddParkingLot.this,Map.class));
+            }
+        });
         //..............................//
 
         // Set up listener for button
@@ -55,9 +67,11 @@ public class AddParkingLot extends AppCompatActivity {
         } else {
             String titleval = title.getText().toString();
             String addressval = address.getText().toString();
-            double costval = Double.parseDouble(cost.getText().toString());
-            double hourval = Double.parseDouble(hour.getText().toString());
-            mDatabase.push().setValue(new Parking(titleval, addressval, costval, hourval), new DatabaseReference.CompletionListener() {
+            String cityval = city.getText().toString();
+            String stateval = state.getText().toString();
+            String zipcodeval = zipcode.getText().toString();
+            String descval = description.getText().toString();
+            mDatabase.push().setValue(new Parking(titleval, addressval, cityval,stateval,zipcodeval,descval), new DatabaseReference.CompletionListener() {
                 @Override
                 public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
                     if (databaseError != null) {
