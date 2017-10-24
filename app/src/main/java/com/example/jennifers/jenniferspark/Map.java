@@ -37,7 +37,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -57,8 +56,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     private LocationRequest mLocationRequest;
     private Marker mCurrMarker;
     private ImageButton imageButton;
-    private ClientStorage clientStorage;
     private User currentUser;
+    private FirebaseAuth mAuth;
 
 
     @Override
@@ -129,7 +128,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 return true;
             case R.id.SignOut:
                 Toast.makeText(this, "You have signed out", Toast.LENGTH_SHORT).show();
-                clientStorage.logout();
+                mAuth.signOut();
                 startActivity(new Intent(this, Login.class));
                 return true;
             default:
@@ -147,33 +146,30 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     }
 
     /*****************Heper methods*********************/
-/*    private void getCurrentUser() {
-        FirebaseAuth mAuth = FirebaseAuth.getInstance();
-        FirebaseUser mAuthUser = mAuth.getCurrentUser();
+   private void getCurrentUserInfo() {
         DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Users").child(mAuth.getCurrentUser().getUid());
         databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 currentUser = dataSnapshot.getValue(User.class);
             }
-
             @Override
             public void onCancelled(DatabaseError databaseError) {
             }
         });
-    }*/
+    }
     private void initialize() {
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        clientStorage = new ClientStorage(this);
-        if(!clientStorage.getLoginStatus()){
-            startActivity(new Intent(this,Login.class));
+        mAuth = FirebaseAuth.getInstance();
+        if(mAuth.getCurrentUser() == null)
+        {
+            finish();
+            startActivity(new Intent(Map.this,Login.class));
         }
-        else {
-            currentUser = clientStorage.getCurrentUser();
-        }
+       // getCurrentUser();
         imageButton = (ImageButton) findViewById(R.id.searchimgbtn);
         imageButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -304,7 +300,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         mCurrMarker = mMap.addMarker(markerOptions);
 
         //move map camera
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
     }
 
     @Override

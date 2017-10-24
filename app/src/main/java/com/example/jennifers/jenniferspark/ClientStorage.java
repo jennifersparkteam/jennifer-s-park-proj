@@ -5,13 +5,15 @@ import android.content.SharedPreferences;
 
 /**
  * Created by Jennifer's Team on 10/18/2017.
+ * Client storage stores user status on client side. Application can retrieve user
+ * data on client side without requesting from server
  */
 
 public class ClientStorage {
     SharedPreferences storage;
 
     /**
-     * Constructor of client storage
+     * Constructor of client storage.
      * @param context the context request storage
      */
     public ClientStorage(Context context){
@@ -28,7 +30,14 @@ public class ClientStorage {
         s.putString("Username",user.getName());
         s.putString("Email",user.getEmail());
         s.putInt("Admin",user.getIsAdmin());
-        s.putBoolean("isLogin",true);
+        setLogin();
+        s.commit();
+    }
+    public void update(User user){
+        SharedPreferences.Editor s = storage.edit();
+        s.putString("Username",user.getName());
+        s.putString("Email",user.getEmail());
+        s.putInt("Admin",user.getIsAdmin());
         s.commit();
     }
     /**
@@ -40,9 +49,17 @@ public class ClientStorage {
     }
 
     /**
+     * This method set login status on when user login
+     */
+    public void setLogin(){
+        SharedPreferences.Editor s = storage.edit();
+        s.putBoolean("isLogin",true);
+        s.commit();
+    }
+    /**
      * This method set login status off when user logout
      */
-    public void logout(){
+    public void setLogout(){
         SharedPreferences.Editor s = storage.edit();
         s.putBoolean("isLogin",false);
         s.commit();

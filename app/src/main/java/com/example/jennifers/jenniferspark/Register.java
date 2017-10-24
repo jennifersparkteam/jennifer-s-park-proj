@@ -112,7 +112,6 @@ public class Register extends AppCompatActivity {
             } else if (inputValidation(email, "email") == 2) {
                 remail.setError("Your email is invalid. Please check again");
             } else {
-                // Toast.makeText(this,"Good",Toast.LENGTH_LONG).show();
                 progress.setMessage("Signing up");
                 progress.show();
                 mAuth.createUserWithEmailAndPassword(email, pass).addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
