@@ -1,9 +1,13 @@
 package com.example.jennifers.jenniferspark;
 
 import android.Manifest;
+import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -16,6 +20,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
@@ -43,22 +48,52 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 
 public class Map extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
 
+    /**
+     * CODE
+     */
     private static final int LOCATION_PERMISSIONS_CODE = 1;
     private static final int PLACE_AUTO_COMPLETE_CODE = 11;
+    /**
+     * Google Map and related
+     */
     private GoogleMap mMap;
     private Location mLocation;
+
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
     private Marker mCurrMarker;
-    private ImageButton imageButton;
-    private User currentUser;
+    //List stores all markers on map
+    private List<Marker> markerList;
+    private Geocoder geocoder;
+    /**
+     * Firebase
+     */
     private FirebaseAuth mAuth;
-
+    /**
+     * Android(Java)
+     */
+    private ImageButton imageButton;
+    private Button exitsearchmodebtn;
+    private User currentUser;
+    //This variable keeps track area for parking lot information. If users' area change,
+    //parking lot list is updated to retrieve new parking lot information from database for new area
+    private ProgressDialog progressDialog;
+    private String localcity;
+    //List stores all parking lot in specific area
+    private List<Parking> parkingList;
+    private boolean isStart;
+    //This variable keep track search mode
+    private boolean isSearch;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,6 +141,10 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         }
     }
 
+    /*
+    * Create main menu and set up option for the menu
+    **/
+    //Inflate the menu on Acitivity
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
@@ -113,6 +152,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         return true;
     }
 
+    //Set up options for meny
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
@@ -136,6 +176,9 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         }
     }
 
+    /*
+    *Build Google API on client side
+    **/
     protected synchronized void buildGoogleApiClient() {
         mGoogleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(this)
@@ -145,31 +188,139 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         mGoogleApiClient.connect();
     }
 
-    /*****************Heper methods*********************/
-   private void getCurrentUserInfo() {
+    /*
+    * HELPER METHODS
+    * */
+    //Get current authorized user information
+    private void getCurrentUserInfo() {
         DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Users").child(mAuth.getCurrentUser().getUid());
         databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 currentUser = dataSnapshot.getValue(User.class);
             }
+
             @Override
             public void onCancelled(DatabaseError databaseError) {
             }
         });
     }
+
+    //Get parking lot around current location
+    private void getParkingList(LatLng latLng) {
+
+        try {
+            List<Address> addresses;
+            addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
+            String child = addresses.get(0).getLocality() + addresses.get(0).getAdminArea();
+
+            if (!localcity.equals(child)) {
+                localcity = child;
+                parkingList.clear();
+                for (Marker m : markerList) {
+                    m.remove();
+                }
+                markerList.clear();
+                DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference().child("Parkings").child(child);
+                databaseReference.addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        for (DataSnapshot d : dataSnapshot.getChildren()) {
+                            Parking temp = d.getValue(Parking.class);
+                            parkingList.add(temp);
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+                    }
+                });
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void displayParkingLot() {
+
+        List<Address> addresses;
+        for (Parking p : parkingList) {
+            try {
+                addresses = geocoder.getFromLocationName(p.toString(), 1);
+                Address location = addresses.get(0);
+                LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+                Marker pmaker = mMap.addMarker(new MarkerOptions().position(latLng).title(p.getTitle()).snippet("Tap for action"));
+                markerList.add(pmaker);
+                pmaker.setTag(p);
+                mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+                    @Override
+                    public void onInfoWindowClick(Marker marker) {
+                        Parking temp = (Parking) marker.getTag();
+                        if (temp != null) {
+                            AlertDialog.Builder confirmDialog = new AlertDialog.Builder(Map.this);
+                            String tempaddress = temp.getAddress() + "\n" + temp.getCity() + ", " + temp.getState() + " " + temp.getZipcode();
+                            confirmDialog.setTitle(temp.getTitle()).setMessage(tempaddress + "\n\n" + temp.getDescription());
+                            confirmDialog.setCancelable(true);
+                            confirmDialog.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    //Do nothing
+                                }
+                            });
+                            confirmDialog.setPositiveButton("Direction", new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+
+                                }
+                            });
+                            Dialog dialogConfirm = confirmDialog.create();
+                            dialogConfirm.show();
+                        }
+                    }
+                });
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    //Initial setup when activity loaded
     private void initialize() {
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+        //Get current authorized user information. No authorized user, go to Login Activity
         mAuth = FirebaseAuth.getInstance();
-        if(mAuth.getCurrentUser() == null)
-        {
+        if (mAuth.getCurrentUser() == null) {
             finish();
-            startActivity(new Intent(Map.this,Login.class));
+            startActivity(new Intent(Map.this, Login.class));
+        } else {
+            getCurrentUserInfo();
         }
-       // getCurrentUser();
+        //Set up geocoder to retrive address
+        geocoder = new Geocoder(this, Locale.getDefault());
+        progressDialog = new ProgressDialog(this);
+        //Other components on Map Activity
+        parkingList = new ArrayList<Parking>();
+        markerList = new ArrayList<Marker>();
+        localcity = "";
+        isStart = true;
+        isSearch = false;
+        //Set up action on buttons
+        exitsearchmodebtn = (Button) findViewById(R.id.exitsearchmodebtn);
+        exitsearchmodebtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                isSearch = false;
+                exitsearchmodebtn.setVisibility(View.GONE);
+                LatLng latLng = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
+                getParkingList(latLng);
+                displayParkingLot();
+
+            }
+        });
+        exitsearchmodebtn.setVisibility(View.GONE);
         imageButton = (ImageButton) findViewById(R.id.searchimgbtn);
         imageButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -186,6 +337,10 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         });
     }
 
+    /*
+    *OVERRIDE METHODS
+    * */
+    //Check permission to access device location
     private void checkLocationPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -222,6 +377,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         }
     }
 
+    //Respone to location access permission request
     @Override
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults) {
@@ -257,6 +413,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         }
     }
 
+    //Respone to search feature. User input an entry and search bar will autocomplete
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -266,6 +423,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 if (mCurrMarker != null) {
                     mCurrMarker.remove();
                 }
+                exitsearchmodebtn.setVisibility(View.VISIBLE);
+                isSearch = true;
                 Place place = PlaceAutocomplete.getPlace(this, data);
                 LatLng latLng = place.getLatLng();
                 MarkerOptions markerOptions = new MarkerOptions();
@@ -276,6 +435,9 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 mCurrMarker = mMap.addMarker(markerOptions);
                 //move map camera
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
+                getParkingList(latLng);
+                while (parkingList.size() == 0)
+                    displayParkingLot();
             } else if (resultCode == PlaceAutocomplete.RESULT_ERROR) {
                 Status status = PlaceAutocomplete.getStatus(this, data);
             } else if (requestCode == RESULT_CANCELED) {
@@ -287,20 +449,27 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     @Override
     public void onLocationChanged(Location location) {
         mLocation = location;
-        if (mCurrMarker != null) {
-            mCurrMarker.remove();
+        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+        Toast.makeText(Map.this, "os", Toast.LENGTH_SHORT).show();
+        //move map camera
+        if (isStart) {
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
+            isStart = false;
+        }
+        //Execute on parking lot list
+        if (!isSearch) {
+            if (parkingList.size() == 0 || markerList.size() == 0) {
+                progressDialog.setMessage("Loading");
+                progressDialog.show();
+            }
+            else
+                progressDialog.dismiss();
+            getParkingList(latLng);
+            if (markerList.size() == 0) {
+                displayParkingLot();
+            }
         }
 
-        //Place current location marker
-        LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        MarkerOptions markerOptions = new MarkerOptions();
-        markerOptions.position(latLng);
-        markerOptions.title("You are here");
-        // markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
-        mCurrMarker = mMap.addMarker(markerOptions);
-
-        //move map camera
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 16));
     }
 
     @Override

@@ -32,6 +32,18 @@ public class Parking {
     private String description;
 
     /**
+     * Default Construction
+     */
+    public Parking() {
+        title = "";
+        address = "";
+        city = "";
+        state = "";
+        zipcode = "";
+        description = "";
+    }
+
+    /**
      * Parking Construction
      * Create new parking lot object with preset data
      *
@@ -157,5 +169,9 @@ public class Parking {
      */
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String toString() {
+        return address + " " + city + " " + state + " " + zipcode;
     }
 }

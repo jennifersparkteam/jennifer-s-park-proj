@@ -71,6 +71,7 @@ public class AddParkingLot extends AppCompatActivity {
             String stateval = state.getText().toString();
             String zipcodeval = zipcode.getText().toString();
             String descval = description.getText().toString();
+            mDatabase = mDatabase.child(cityval+stateval);
             mDatabase.push().setValue(new Parking(titleval, addressval, cityval,stateval,zipcodeval,descval), new DatabaseReference.CompletionListener() {
                 @Override
                 public void onComplete(DatabaseError databaseError, DatabaseReference databaseReference) {
