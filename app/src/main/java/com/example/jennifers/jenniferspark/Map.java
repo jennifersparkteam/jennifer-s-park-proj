@@ -10,7 +10,6 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -24,7 +23,6 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
-import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -94,6 +92,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     private boolean isSearch;
     private boolean isPlaced;
     private boolean isFetched;
+    private boolean isStarted;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -275,7 +274,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                                     Intent intent = new Intent(Map.this, Navigation.class);
                                     intent.putExtra("destination", temp.toString());
 
-                                    intent.putExtra("origin",mLocation);
+                                    intent.putExtra("origin", mLocation);
                                     startActivity(intent);
                                 }
                             });
@@ -309,10 +308,14 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         //Set up geocoder to retrive address
         geocoder = new Geocoder(this, Locale.getDefault());
         progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Loading");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
         //Other components on Map Activity
         parkingList = new ArrayList<Parking>();
         markerList = new ArrayList<Marker>();
         localcity = "";
+        isStarted = true;
         isPlaced = false;
         isSearch = false;
         isFetched = false;
@@ -321,8 +324,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         exitsearchmodebtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                isSearch = false;
-                exitsearchmodebtn.setVisibility(View.GONE);
+                finish();
+                startActivity(getIntent());
             }
         });
         exitsearchmodebtn.setVisibility(View.GONE);
@@ -412,9 +415,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 }
                 return;
             }
-
-            // other 'case' lines to check for other
-            // permissions this app might request
         }
     }
 
@@ -475,9 +475,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     public void onLocationChanged(Location location) {
         mLocation = location;
         LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
-        if(!isSearch) {
+        if (!isSearch) {
             try {
-
                 List<Address> addresses;
                 addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
                 String child = addresses.get(0).getLocality() + addresses.get(0).getAdminArea();
@@ -488,9 +487,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                     localcity = child;
                 }
                 if (!isFetched) {
-                    progressDialog.setMessage("Loading");
-                    progressDialog.setCancelable(false);
-                    progressDialog.show();
                     getParkingList(latLng);
                 }
                 if (isFetched && isPlaced) {
@@ -501,7 +497,10 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 e.printStackTrace();
             }
             //move map camera
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
+            if (isStarted) {
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
+                isStarted = false;
+            }
         }
         //Execute on parking lot list
 
@@ -526,8 +525,4 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
 
     }
 
-//    @Override
-//    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-//
-//    }
 }
