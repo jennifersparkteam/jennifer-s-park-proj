@@ -68,7 +68,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
 
     private GoogleApiClient mGoogleApiClient;
     private LocationRequest mLocationRequest;
-    private Marker mCurrMarker;
     //List stores all markers on map
     private List<Marker> markerList;
     private Geocoder geocoder;
@@ -90,7 +89,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     private List<Parking> parkingList;
     //This variable keep track search mode
     private boolean isSearch;
-    private boolean isPlaced;
     private boolean isFetched;
     private boolean isStarted;
 
@@ -143,7 +141,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     /*
     * Create main menu and set up option for the menu
     **/
-    //Inflate the menu on Acitivity
+    //Inflate the menu on Activity
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
@@ -151,7 +149,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         return true;
     }
 
-    //Set up options for meny
+    //Set up options for menu
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle item selection
@@ -208,7 +206,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     private void getParkingList(LatLng latLng) {
 
         try {
-//            Toast.makeText(Map.this,"beign1",Toast.LENGTH_SHORT).show();
             List<Address> addresses;
             addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1);
             String child = addresses.get(0).getLocality() + addresses.get(0).getAdminArea();
@@ -226,8 +223,8 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                         parkingList.add(temp);
                     }
                     isFetched = true;
-//                    Toast.makeText(Map.this,"finish1",Toast.LENGTH_SHORT).show();
                     displayParkingLot();
+                    progressDialog.dismiss();
                 }
 
                 @Override
@@ -244,7 +241,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
     private void displayParkingLot() {
 
         List<Address> addresses;
-//        Toast.makeText(Map.this,"beign2",Toast.LENGTH_SHORT).show();
         for (Parking p : parkingList) {
             try {
                 addresses = geocoder.getFromLocationName(p.toString(), 1);
@@ -287,8 +283,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 e.printStackTrace();
             }
         }
-        isPlaced = true;
-//        Toast.makeText(Map.this,"finish2",Toast.LENGTH_SHORT).show();
     }
 
     //Initial setup when activity loaded
@@ -316,7 +310,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         markerList = new ArrayList<Marker>();
         localcity = "";
         isStarted = true;
-        isPlaced = false;
         isSearch = false;
         isFetched = false;
         //Set up action on buttons
@@ -325,7 +318,7 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
             @Override
             public void onClick(View v) {
                 finish();
-                startActivity(getIntent());
+                startActivity(new Intent(Map.this,Map.class));
             }
         });
         exitsearchmodebtn.setVisibility(View.GONE);
@@ -344,7 +337,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
             }
         });
     }
-
     /*
     *OVERRIDE METHODS
     * */
@@ -425,19 +417,10 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
         //autocompleteFragment.onActivityResult(requestCode, resultCode, data);
         if (requestCode == PLACE_AUTO_COMPLETE_CODE) {
             if (resultCode == RESULT_OK) {
-                if (mCurrMarker != null) {
-                    mCurrMarker.remove();
-                }
                 exitsearchmodebtn.setVisibility(View.VISIBLE);
                 isSearch = true;
                 Place place = PlaceAutocomplete.getPlace(this, data);
                 LatLng latLng = place.getLatLng();
-                MarkerOptions markerOptions = new MarkerOptions();
-                markerOptions.position(latLng);
-                markerOptions.title(place.getName().toString());
-                markerOptions.snippet(place.getAddress().toString());
-                // markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
-                mCurrMarker = mMap.addMarker(markerOptions);
                 //move map camera
                 mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 11));
 
@@ -449,7 +432,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
 
                     if (!localcity.equals(child)) {
                         isFetched = false;
-                        isPlaced = false;
                         localcity = child;
                     }
                     if (!isFetched) {
@@ -457,7 +439,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                         progressDialog.setCancelable(false);
                         progressDialog.show();
                         getParkingList(latLng);
-                        progressDialog.dismiss();
                     }
 
                 } catch (IOException e) {
@@ -483,16 +464,11 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
 
                 if (!localcity.equals(child)) {
                     isFetched = false;
-                    isPlaced = false;
                     localcity = child;
                 }
                 if (!isFetched) {
                     getParkingList(latLng);
                 }
-                if (isFetched && isPlaced) {
-                    progressDialog.dismiss();
-                }
-
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -502,8 +478,6 @@ public class Map extends AppCompatActivity implements OnMapReadyCallback, Google
                 isStarted = false;
             }
         }
-        //Execute on parking lot list
-
     }
 
     @Override

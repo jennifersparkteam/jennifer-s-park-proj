@@ -8,6 +8,9 @@ import android.support.annotation.NonNull;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -42,8 +45,6 @@ public class Profile extends ActionBarActivity {
 
     private void initialize() {
         mAuth = FirebaseAuth.getInstance();
-//        clientStorage = new ClientStorage(this);
-//        currentUser = clientStorage.getCurrentUser();
         profileemail = (TextView) findViewById(R.id.profileemailtv);
         profilename = (TextView) findViewById(R.id.profilenametv);
         changename = (TextView) findViewById(R.id.profilechangenametv);
@@ -68,6 +69,32 @@ public class Profile extends ActionBarActivity {
                 changePassword();
             }
         });
+    }
+
+    //Inflate the menu on Activity
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.sub_menu, menu);
+        return true;
+    }
+
+    //Set up options for menu
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.Profile:
+                startActivity(new Intent(this, Profile.class));
+                return true;
+            case R.id.SignOut:
+                Toast.makeText(this, "You have signed out", Toast.LENGTH_SHORT).show();
+                mAuth.signOut();
+                startActivity(new Intent(this, Login.class));
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     /**
@@ -109,14 +136,12 @@ public class Profile extends ActionBarActivity {
                     confirmDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-//                            FirebaseAuth mAuth = FirebaseAuth.getInstance();
                             DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference("Users").child(mAuth.getCurrentUser().getUid());
                             User updatedUser = new User(newname, currentUser.getEmail(), currentUser.getIsAdmin());
                             databaseReference.setValue(updatedUser);
-                            //   clientStorage.update(updatedUser);
+
                             Toast.makeText(Profile.this, "Updated Successfully", Toast.LENGTH_SHORT).show();
-                            finish();
-                            startActivity(getIntent());
+                            startActivity(new Intent(Profile.this,Profile.class));
                         }
                     });
                     Dialog dialogConfirm = confirmDialog.create();

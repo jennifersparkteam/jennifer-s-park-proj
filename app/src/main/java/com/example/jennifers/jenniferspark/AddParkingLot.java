@@ -3,12 +3,16 @@ package com.example.jennifers.jenniferspark;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
@@ -17,6 +21,7 @@ public class AddParkingLot extends AppCompatActivity {
     private EditText title, address, city,state,zipcode,description;
     private Button addParkingbtn,bckbtn;
     private DatabaseReference mDatabase;
+    private FirebaseAuth mAuth;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,7 +47,7 @@ public class AddParkingLot extends AppCompatActivity {
 
         //Access to Parking table on database
         mDatabase = FirebaseDatabase.getInstance().getReference().child("Parkings");
-
+        mAuth = FirebaseAuth.getInstance();
         bckbtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -59,6 +64,31 @@ public class AddParkingLot extends AppCompatActivity {
             }
         });
         //............................//
+    }
+    //Inflate the menu on Activity
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.sub_menu, menu);
+        return true;
+    }
+
+    //Set up options for menu
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.Profile:
+                startActivity(new Intent(this, Profile.class));
+                return true;
+            case R.id.SignOut:
+                Toast.makeText(this, "You have signed out", Toast.LENGTH_SHORT).show();
+                mAuth.signOut();
+                startActivity(new Intent(this, Login.class));
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     private void addNewParkingLot() {

@@ -1,12 +1,18 @@
 package com.example.jennifers.jenniferspark;
 
+import android.app.ProgressDialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
+import android.support.v7.app.AppCompatActivity;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -18,7 +24,9 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.firebase.auth.FirebaseAuth;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,17 +44,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class Navigation extends FragmentActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
+public class Navigation extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         LocationListener {
 
     private static final String DIRECTION_URL_API = "https://maps.googleapis.com/maps/api/directions/json?";
     private static final String GOOGLE_API_KEY = "AIzaSyDnwLF2-WfK8cVZt9OoDYJ9Y8kspXhEHfI";
+    private FirebaseAuth mAuth;
     private GoogleMap mMap;
     private LatLng origin;
     private String destination;
     private LocationRequest mLocationRequest;
     private GoogleApiClient mGoogleApiClient;
     private boolean isFinish;
+    private ProgressDialog progressDialog;
+    private TextView distance, duration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,20 +78,42 @@ public class Navigation extends FragmentActivity implements OnMapReadyCallback, 
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
+        mAuth = FirebaseAuth.getInstance();
         isFinish = false;
-//        Toast.makeText(Navigation.this, extras.getString("destination"), Toast.LENGTH_SHORT).show();
+        distance = (TextView) findViewById(R.id.tvDistance);
+        duration = (TextView) findViewById(R.id.tvDuration);
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage("Finding Path...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
     }
 
+    //Inflate the menu on Activity
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.sub_menu, menu);
+        return true;
+    }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
+    //Set up options for menu
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.Profile:
+                startActivity(new Intent(this, Profile.class));
+                return true;
+            case R.id.SignOut:
+                Toast.makeText(this, "You have signed out", Toast.LENGTH_SHORT).show();
+                mAuth.signOut();
+                startActivity(new Intent(this, Login.class));
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -117,7 +150,7 @@ public class Navigation extends FragmentActivity implements OnMapReadyCallback, 
             } else {
 
                 String url = DIRECTION_URL_API + "origin=" + origin.latitude + "," + origin.longitude + "&destination=" + destination + "&key=" + GOOGLE_API_KEY;
-                Toast.makeText(Navigation.this, url, Toast.LENGTH_SHORT).show();
+
                 new DownloadDirection().execute(url);
             }
         }
@@ -149,6 +182,7 @@ public class Navigation extends FragmentActivity implements OnMapReadyCallback, 
                 String line;
                 while ((line = reader.readLine()) != null) {
                     buffer.append(line + "\n");
+
                 }
 
                 return buffer.toString();
@@ -164,8 +198,10 @@ public class Navigation extends FragmentActivity implements OnMapReadyCallback, 
         @Override
         protected void onPostExecute(String res) {
             try {
+
                 translationData(res);
                 isFinish = true;
+                progressDialog.dismiss();
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -176,12 +212,9 @@ public class Navigation extends FragmentActivity implements OnMapReadyCallback, 
         if (data == null)
             return;
 
-//        List<Route> routes = new ArrayList<Route>();
         JSONObject jsonData = new JSONObject(data);
         JSONArray jsonRoutes = jsonData.getJSONArray("routes");
-//        for (int i = 0; i < jsonRoutes.length(); i++) {
         JSONObject jsonRoute = jsonRoutes.getJSONObject(0);
-//            Route route = new Route();
 
         JSONObject overview_polylineJson = jsonRoute.getJSONObject("overview_polyline");
         JSONArray jsonLegs = jsonRoute.getJSONArray("legs");
@@ -189,7 +222,7 @@ public class Navigation extends FragmentActivity implements OnMapReadyCallback, 
         JSONObject jsonDistance = jsonLeg.getJSONObject("distance");
         JSONObject jsonDuration = jsonLeg.getJSONObject("duration");
         JSONObject jsonEndLocation = jsonLeg.getJSONObject("end_location");
-        JSONObject jsonStartLocation = jsonLeg.getJSONObject("start_location");
+//        JSONObject jsonStartLocation = jsonLeg.getJSONObject("start_location");
 
 //            route.distance = new Distance(jsonDistance.getString("text"), jsonDistance.getInt("value"));
 //            route.duration = new Duration(jsonDuration.getString("text"), jsonDuration.getInt("value"));
@@ -197,17 +230,19 @@ public class Navigation extends FragmentActivity implements OnMapReadyCallback, 
 //            route.startAddress = jsonLeg.getString("start_address");
 //            route.startLocation = new LatLng(jsonStartLocation.getDouble("lat"), jsonStartLocation.getDouble("lng"));
 //            route.endLocation = new LatLng(jsonEndLocation.getDouble("lat"), jsonEndLocation.getDouble("lng"));
+//        duration.setText(jsonDuration.getString("text"));
+//        distance.setText(jsonDistance.getString("text"));
         List<LatLng> polypoints = decodePolyLine(overview_polylineJson.getString("points"));
         PolylineOptions polylineOptions = new PolylineOptions().
                 geodesic(true).
                 width(10);
-        for(LatLng l : polypoints){
+        for (LatLng l : polypoints) {
             polylineOptions.add(l);
         }
+
         mMap.addPolyline(polylineOptions);
-//Toast.makeText(Navigation.this, jsonDistance.getString("text") + "," + jsonDuration.getString("text"), Toast.LENGTH_SHORT).show();
-//            routes.add(route);
-//        }
+        mMap.addMarker(new MarkerOptions().title(jsonLeg.getString("end_address")).position(new LatLng(jsonEndLocation.getDouble("lat"), jsonEndLocation.getDouble("lng"))));
+
     }
 
     private List<LatLng> decodePolyLine(final String poly) {
